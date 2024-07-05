@@ -16,9 +16,10 @@ from llama_parse import LlamaParse
 from llama_index.core import SimpleDirectoryReader
 
 PROMPT_TEMPLATE = '''
-        Given the following text extracted from meeting minutes, generate a list of action items and their associated dates (if any) in JSON format. Each action item should be an object with the following properties:
+        Given the following text extracted from meeting minutes, generate a list of action items, their associated dates (if any) and the person/entity associated with the action item in JSON format. Each action item should be an object with the following properties:
         - "action": The specific task or action to be taken
         - "date": The due date or relevant date for the action (if mentioned), formatted as YYYY-MM-DD. If no date is specified, use null.
+        - "entity": The person/group associated with the action item. If no person is associated, use null.
 
         Present the results as a JSON array of these objects. Ensure that each action item is clear, concise, and actionable. Ignore general discussion points or decisions that don't require specific actions.
 
