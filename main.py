@@ -7,6 +7,11 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain.chains.summarize import load_summarize_chain
 from langchain.prompts import ChatPromptTemplate
+from langchain_community.document_loaders import DirectoryLoader
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.storage import InMemoryStore
+from langchain.retrievers import ParentDocumentRetriever
+
 import shutil
 import ollama
 
@@ -42,15 +47,17 @@ def document_parser(api_key):
         api_key=api_key,
         result_type="markdown"
     )
+    # file_extractor = {".pdf": parser}
+    # documents = SimpleDirectoryReader(input_files=['data/mom/tnega.pdf'], file_extractor=file_extractor).load_data()
+    loader = DirectoryLoader('data/mom/', glob="**/*.pdf", loader_cls=PyPDFLoader)
+    documents = loader.load()
 
-    file_extractor = {".pdf": parser}
-    documents = SimpleDirectoryReader(input_files=['data/mom/tnega.pdf'], file_extractor=file_extractor).load_data()
     return(documents)
 
 def generate_embeddings(documents: list[Document]):
-    document = [doc.get_content() for doc in documents]
+    document = [doc.page_content for doc in documents]
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=80,
+        chunk_size=150,
         chunk_overlap=25,
         length_function=len,
         add_start_index=True,
@@ -62,9 +69,23 @@ def generate_embeddings(documents: list[Document]):
     if os.path.exists(CHROMA_PATH):
         shutil.rmtree(CHROMA_PATH)
     
-    db = Chroma.from_documents(
-        chunks, OllamaEmbeddings(model="mxbai-embed-large"), persist_directory=CHROMA_PATH
+    # db = Chroma.from_documents(
+    #     chunks, OllamaEmbeddings(model="mxbai-embed-large"), persist_directory=CHROMA_PATH
+    # )
+
+    vectorstore = Chroma(
+        collection_name="vectors-new-1", embedding_function=OllamaEmbeddings(model="mxbai-embed-large")
     )
+
+    store = InMemoryStore()
+
+    retriever = ParentDocumentRetriever(
+        vectorstore=vectorstore,
+        docstore=store,
+        child_splitter=text_splitter,
+    )
+
+    retriever.add_documents(documents, ids=None)
 
     # db.persist()
     print(f"Saved {len(chunks)} chunks to {CHROMA_PATH}.")
@@ -101,18 +122,16 @@ def extract_action_items(documents):
 
     print("Extracted action items: \n")
     print(output['response'])
-
-
     
 
 if __name__ == "__main__":
     documents = document_parser(api_key)
     
-    # Generate embeddings for interacting with meeting minutes
+    # # Generate embeddings for interacting with meeting minutes
     generate_embeddings(documents)
     
-    # Generate summary
-    generate_summary(documents)
+    # # Generate summary
+    # generate_summary(documents)
 
-    #Extract Action items
-    extract_action_items(documents)
+    # #Extract Action items
+    # extract_action_items(documents)
